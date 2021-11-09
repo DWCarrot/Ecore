@@ -1,0 +1,2 @@
+# Ecore
+Economy Core
