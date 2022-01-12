@@ -4,17 +4,21 @@ import java.util.UUID;
 
 public interface ECoreEconomy {
     TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount);
-    TradeResult playerTrade(UUID fromVault,UUID toVault, double amount);
+
+    TradeResult playerTrade(UUID fromVault, UUID toVault, double amount);
+
     boolean withdrawSystemVault(double amount);
+
     boolean depositSystemVault(double amount);
 }
 
-interface TradeResult{
+interface TradeResult {
     boolean isSuccess();
+
     Receipt getReceipt();
 }
 
-interface Receipt{
+interface Receipt {
     UUID getPayer();
 
     UUID getReceiver();

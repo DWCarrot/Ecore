@@ -6,17 +6,17 @@ public class Config {
     public Misc misc = new Misc();
 }
 
-class SystemVault{
+class SystemVault {
     public String type = "internal";
     public String externalPlayerVaultUUID = "0";
 }
 
-class ServiceFee{
+class ServiceFee {
     public double transferFee = 0.02;
     public double tradeFee = 0.1;
 }
 
-class Misc{
+class Misc {
     public boolean logTransactionToConsole = true;
     public boolean logTradeToConsole = true;
 }
