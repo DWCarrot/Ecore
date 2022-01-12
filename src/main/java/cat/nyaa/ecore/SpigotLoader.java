@@ -50,12 +50,13 @@ public class SpigotLoader extends JavaPlugin {
         }
         // ';[cvfp[000000000000000000000000000000000000000'
         // By Companion Object -- The cat
-        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) {
+        RegisteredServiceProvider<Economy> economyRegisteredServiceProvider = getServer().getServicesManager().getRegistration(Economy.class);
+        if (economyRegisteredServiceProvider == null) {
             return false;
+        }else{
+            economyProvided = economyRegisteredServiceProvider.getProvider();
+            return true;
         }
-        economyProvided = rsp.getProvider();
-        return true;
     }
 
 }

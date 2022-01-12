@@ -3,10 +3,10 @@ package cat.nyaa.ecore;
 import java.util.UUID;
 
 public interface ECoreEconomy {
-    TradeResult playerTransaction(UUID fromVault, UUID toVault, double amount);
+    TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount);
     TradeResult playerTrade(UUID fromVault,UUID toVault, double amount);
-    boolean withdrawSystemVault();
-    boolean depositSystemVault();
+    boolean withdrawSystemVault(double amount);
+    boolean depositSystemVault(double amount);
 }
 
 interface TradeResult{
