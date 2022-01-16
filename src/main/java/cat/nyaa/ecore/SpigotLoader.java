@@ -18,7 +18,7 @@ public class SpigotLoader extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        //initialize configuration
+        //initialize api
         var configFile = new File(getDataFolder(), "config.toml");
         if (getDataFolder().mkdir()) {
             logger.info("Created data folder.");
@@ -60,6 +60,10 @@ public class SpigotLoader extends JavaPlugin {
         }
 
         this.getServer().getServicesManager().register(EconomyCore.class, eCoreProvider, this, ServicePriority.Normal);
+
+        //end of api initialize
+
+        //start of initialize functional commands
 
     }
 

@@ -86,20 +86,13 @@ public class EconomyCoreProvider implements EconomyCore {
     }
 
     private TradeResult transactionWithFeeRate(UUID fromVault, UUID toVault, double amount, double feeRate) {
-        var payer = Bukkit.getOfflinePlayer(fromVault);
-        var receiver = Bukkit.getOfflinePlayer(toVault);
-        createPlayerBankAccountIfNotExist(payer);
-        createPlayerBankAccountIfNotExist(receiver);
-
-        var withdrawResult = economy.withdrawPlayer(payer, amount);
-        if (withdrawResult.type != EconomyResponse.ResponseType.SUCCESS)
-            return new TradeResultInternal(false, null);
         var transactionFee = amount * feeRate;
         var amountFinal = amount - transactionFee;
-        economy.depositPlayer(receiver, amountFinal);
+        if (!depositPlayer(toVault, amountFinal)) {
+            return new TradeResultInternal(false, null);
+        }
         depositSystemVault(transactionFee);
-
-        return new TradeResultInternal(true, new ReceiptInternal(fromVault, toVault, amountFinal, transactionFee, amount, config.serviceFee.transferFee, economy.getBalance(payer), economy.getBalance(receiver), random.nextLong()));
+        return new TradeResultInternal(true, new ReceiptInternal(fromVault, toVault, amountFinal, transactionFee, amount, config.serviceFee.transferFee, getBalance(fromVault), getBalance(toVault), random.nextLong()));
     }
 
     @Override
@@ -117,6 +110,22 @@ public class EconomyCoreProvider implements EconomyCore {
         if (config.misc.logTransactionToConsole)
             Bukkit.getLogger().info("(Trade) " + receipt);
         return receipt;
+    }
+
+    @Override
+    public boolean depositPlayer(UUID vault, double amount) {
+        var player = Bukkit.getOfflinePlayer(vault);
+        createPlayerBankAccountIfNotExist(player);
+        var withdrawResult = economy.depositPlayer(player, amount);
+        return withdrawResult.type != EconomyResponse.ResponseType.SUCCESS;
+    }
+
+    @Override
+    public boolean withdrawPlayer(UUID vault, double amount) {
+        var player = Bukkit.getOfflinePlayer(vault);
+        createPlayerBankAccountIfNotExist(player);
+        var withdrawResult = economy.withdrawPlayer(player, amount);
+        return withdrawResult.type != EconomyResponse.ResponseType.SUCCESS;
     }
 
     public boolean withdrawSystemVault(double amount) {
@@ -139,6 +148,13 @@ public class EconomyCoreProvider implements EconomyCore {
         } else {
             return economy.depositPlayer(vaultPlayer, amount).type == EconomyResponse.ResponseType.SUCCESS;
         }
+    }
+
+    @Override
+    public double getBalance(UUID vault) {
+        var player = Bukkit.getOfflinePlayer(vault);
+        createPlayerBankAccountIfNotExist(player);
+        return economy.getBalance(player);
     }
 
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {

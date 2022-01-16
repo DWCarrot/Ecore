@@ -7,9 +7,15 @@ public interface EconomyCore {
 
     TradeResult playerTrade(UUID fromVault, UUID toVault, double amount);
 
+    boolean depositPlayer(UUID vault, double amount);
+
+    boolean withdrawPlayer(UUID vault, double amount);
+
     boolean withdrawSystemVault(double amount);
 
     boolean depositSystemVault(double amount);
+
+    double getBalance(UUID vault);
 }
 
 interface TradeResult {
