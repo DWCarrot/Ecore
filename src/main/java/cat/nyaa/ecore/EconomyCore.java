@@ -2,7 +2,7 @@ package cat.nyaa.ecore;
 
 import java.util.UUID;
 
-public interface ECoreEconomy {
+public interface EconomyCore {
     TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount);
 
     TradeResult playerTrade(UUID fromVault, UUID toVault, double amount);

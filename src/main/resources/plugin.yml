@@ -1,3 +1,8 @@
 name: ECore
 main: cat.nyaa.ecore.SpigotLoader
 version: ${project.version}
+authors:
+  - NyaaCat Community
+api-version: 1.18
+depend:
+  - Vault

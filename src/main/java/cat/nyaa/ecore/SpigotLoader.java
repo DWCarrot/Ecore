@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 public class SpigotLoader extends JavaPlugin {
     private final Logger logger = getLogger();
     private Economy economyProvided = null;
-    private ECore eCore = null;
+    private EconomyCoreProvider eCoreProvider = null;
 
     @Override
     public void onEnable() {
@@ -38,6 +38,13 @@ public class SpigotLoader extends JavaPlugin {
 
         var toml = new Toml();
         var config = toml.read(configFile).to(Config.class);
+        try {
+            tomlWriter.write(config, configFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            this.getServer().getPluginManager().disablePlugin(this);
+            logger.severe("Error occurred while loading config file.");
+        }
         logger.info("Config loaded.");
 
         if (!setupEconomy()) {
@@ -47,12 +54,12 @@ public class SpigotLoader extends JavaPlugin {
 
         // create ecore instance & register instance as a service provider to service manager
         try {
-            eCore = new ECore(config, economyProvided, this);
+            eCoreProvider = new EconomyCoreProvider(config, economyProvided, this);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        this.getServer().getServicesManager().register(ECoreEconomy.class, eCore, this, ServicePriority.Normal);
+        this.getServer().getServicesManager().register(EconomyCore.class, eCoreProvider, this, ServicePriority.Normal);
 
     }
 
@@ -71,4 +78,8 @@ public class SpigotLoader extends JavaPlugin {
         }
     }
 
+    @Override
+    public void onDisable() {
+        eCoreProvider.onDisable();
+    }
 }

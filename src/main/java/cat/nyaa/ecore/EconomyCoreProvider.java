@@ -1,43 +1,62 @@
 package cat.nyaa.ecore;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ECore implements ECoreEconomy {
+public class EconomyCoreProvider implements EconomyCore {
     private final Economy economy;
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
+    private final File economyCoreInternalDataFile;
+    private final Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private Config config;
     private double internalVaultBalance;
     private OfflinePlayer vaultPlayer = null;
+    private final JavaPlugin pluginInstance;
     private boolean isInternalVaultEnabled;
 
-    public ECore(Config config, Economy economy, JavaPlugin pluginInstance) throws IOException {
+    public EconomyCoreProvider(Config config, Economy economy, JavaPlugin pluginInstance) throws IOException {
         this.economy = economy;
-        load(config, pluginInstance);
+        this.pluginInstance = pluginInstance;
+        economyCoreInternalDataFile = new File(pluginInstance.getDataFolder(), "ecore_internal_data.json");
+        load(config);
     }
 
-    private void load(Config config, JavaPlugin pluginInstance) throws IOException {
+    private void load(Config config) throws IOException {
         this.config = config;
         if (config.vault.type.equals("internal")) {
             isInternalVaultEnabled = true;
-            var data = new File("ecore_data");
-            if (data.createNewFile() || data.length() == 0) {
+            if (economyCoreInternalDataFile.createNewFile() || economyCoreInternalDataFile.length() == 0) {
                 pluginInstance.getLogger().info("Created new ecore data file.");
                 internalVaultBalance = 0;
             } else {
-                internalVaultBalance = Double.parseDouble(new BufferedReader(new FileReader(data)).readLine());
+                var ecoreData = gson.fromJson(new FileReader(economyCoreInternalDataFile), EcoreDataInternal.class);
+                if (ecoreData == null) {
+                    ecoreData = new EcoreDataInternal(0);
+                    saveInternalVaultBalance();
+                }
+                internalVaultBalance = ecoreData.internalVaultBalance();
                 pluginInstance.getLogger().info("Loaded ecore data file.");
             }
+            pluginInstance.getServer().getScheduler().runTaskTimer(pluginInstance, () -> {
+                try {
+                    saveInternalVaultBalance();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }, 0, 20 * config.vault.internalVaultAutoSaveIntervalInSeconds);
+            pluginInstance.getLogger().info("Using " + config.vault.type + " vault as system account.");
         } else if (config.vault.type.equals("external")) {
             isInternalVaultEnabled = false;
             vaultPlayer = Bukkit.getOfflinePlayer(UUID.fromString(config.vault.externalPlayerVaultUUID));
@@ -45,8 +64,24 @@ public class ECore implements ECoreEconomy {
                 economy.createPlayerAccount(vaultPlayer);
                 pluginInstance.getLogger().info("Created new external vault account.");
             }
+            pluginInstance.getLogger().info("Using " + config.vault.type + " vault as system account. Vault account UUID: " + vaultPlayer.getUniqueId());
         } else {
             throw new RuntimeException("Unknown vault type: " + config.vault.type);
+        }
+    }
+
+    private void saveInternalVaultBalance() throws IOException {
+        var ecoreData = new EcoreDataInternal(internalVaultBalance);
+        var writer = new FileWriter(economyCoreInternalDataFile);
+        gson.toJson(ecoreData, writer);
+        writer.close();
+    }
+
+    public void onDisable() {
+        try {
+            saveInternalVaultBalance();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -58,13 +93,13 @@ public class ECore implements ECoreEconomy {
 
         var withdrawResult = economy.withdrawPlayer(payer, amount);
         if (withdrawResult.type != EconomyResponse.ResponseType.SUCCESS)
-            return new TradeResultImpl(false, null);
+            return new TradeResultInternal(false, null);
         var transactionFee = amount * feeRate;
         var amountFinal = amount - transactionFee;
         economy.depositPlayer(receiver, amountFinal);
         depositSystemVault(transactionFee);
 
-        return new TradeResultImpl(true, new ReceiptImpl(fromVault, toVault, amountFinal, transactionFee, amount, config.serviceFee.transferFee, economy.getBalance(payer), economy.getBalance(receiver), random.nextLong()));
+        return new TradeResultInternal(true, new ReceiptInternal(fromVault, toVault, amountFinal, transactionFee, amount, config.serviceFee.transferFee, economy.getBalance(payer), economy.getBalance(receiver), random.nextLong()));
     }
 
     @Override
@@ -115,11 +150,11 @@ public class ECore implements ECoreEconomy {
 
 }
 
-class TradeResultImpl implements TradeResult {
+class TradeResultInternal implements TradeResult {
     private final boolean flag;
     private final Receipt receipt;
 
-    TradeResultImpl(boolean isSuccess, Receipt receipt) {
+    TradeResultInternal(boolean isSuccess, Receipt receipt) {
         this.flag = isSuccess;
         this.receipt = receipt;
     }
@@ -135,33 +170,9 @@ class TradeResultImpl implements TradeResult {
     }
 }
 
-class ReceiptImpl implements Receipt {
-    // RECEIPT
-    private final UUID payer;
-    private final UUID receiver;
-    // ---
-    private final double amountTransacted;
-    private final double fee;
-    // ---
-    private final double amount;
-    private final double feeRate;
-    // ---
-    private final double payerRemain;
-    private final double receiverRemain;
-    // ---
-    private final long tradeId;
-
-    public ReceiptImpl(UUID payer, UUID receiver, double amountTransacted, double fee, double amount, double feeRate, double payerRemain, double receiverRemain, long tradeId) {
-        this.payer = payer;
-        this.receiver = receiver;
-        this.amountTransacted = amountTransacted;
-        this.fee = fee;
-        this.amount = amount;
-        this.feeRate = feeRate;
-        this.payerRemain = payerRemain;
-        this.receiverRemain = receiverRemain;
-        this.tradeId = tradeId;
-    }
+record ReceiptInternal(UUID payer, UUID receiver, double amountTransacted, double fee,
+                       double amount, double feeRate, double payerRemain, double receiverRemain,
+                       long tradeId) implements Receipt {
 
     public UUID getPayer() {
         return payer;
@@ -212,4 +223,7 @@ class ReceiptImpl implements Receipt {
                 ", tradeId=" + Long.toHexString(tradeId) +
                 '}';
     }
+}
+
+record EcoreDataInternal(double internalVaultBalance) {
 }
