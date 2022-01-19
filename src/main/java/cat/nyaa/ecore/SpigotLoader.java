@@ -63,8 +63,6 @@ public class SpigotLoader extends JavaPlugin {
 
         //end of api initialize
 
-        //start of initialize functional commands
-
     }
 
     private boolean setupEconomy() {

@@ -1,9 +1,12 @@
 package cat.nyaa.ecore;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface EconomyCore {
     TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount);
+
+    TradeResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount);
 
     TradeResult playerTrade(UUID fromVault, UUID toVault, double amount);
 
@@ -15,31 +18,11 @@ public interface EconomyCore {
 
     boolean depositSystemVault(double amount);
 
-    double getBalance(UUID vault);
-}
+    double getPlayerBalance(UUID vault);
 
-interface TradeResult {
-    boolean isSuccess();
+    double getSystemBalance();
 
-    Receipt getReceipt();
-}
+    double getTransferFeeRate();
 
-interface Receipt {
-    UUID getPayer();
-
-    UUID getReceiver();
-
-    double getAmountTransacted();
-
-    double getFee();
-
-    double getAmount();
-
-    double getFeeRate();
-
-    double getPayerRemain();
-
-    double getReceiverRemain();
-
-    long getTradeId();
+    double getTradeFeeRate();
 }

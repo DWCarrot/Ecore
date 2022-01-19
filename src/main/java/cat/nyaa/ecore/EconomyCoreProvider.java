@@ -12,6 +12,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -85,18 +87,32 @@ public class EconomyCoreProvider implements EconomyCore {
         }
     }
 
-    private TradeResult transactionWithFeeRate(UUID fromVault, UUID toVault, double amount, double feeRate) {
+    private TradeResult transactionWithFeeRate(UUID fromVault,List<UUID> toVaults, double amount, double feeRate ) {
+        var transacted = new ArrayList<UUID>();
+        var total = amount * toVaults.size();
+        if(getPlayerBalance(fromVault) < total) {
+            return new TradeResultInternal(Status.INSUFFICIENT_BALANCE, null);
+        }
+
         var transactionFee = amount * feeRate;
         var amountFinal = amount - transactionFee;
-        if (!depositPlayer(toVault, amountFinal)) {
-            return new TradeResultInternal(false, null);
+        for(UUID toVault : toVaults){
+            if (!withdrawPlayer(fromVault,amount)) {
+                break;
+            }
+            depositSystemVault(transactionFee);
+            depositPlayer(toVault,amountFinal);
         }
-        depositSystemVault(transactionFee);
-        return new TradeResultInternal(true, new ReceiptInternal(fromVault, toVault, amountFinal, transactionFee, amount, config.serviceFee.transferFee, getBalance(fromVault), getBalance(toVault), random.nextLong()));
+        return new TradeResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amountFinal, transactionFee, amount, config.serviceFee.transferFee, getPlayerBalance(fromVault), random.nextLong()));
     }
 
     @Override
     public TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount) {
+        return playerTransferToMultiple(fromVault,List.of(toVault),amount);
+    }
+
+    @Override
+    public TradeResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount) {
         var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee);
         if (config.misc.logTransactionToConsole)
             Bukkit.getLogger().info("(Transfer) " + receipt);
@@ -106,7 +122,7 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public TradeResult playerTrade(UUID fromVault, UUID toVault, double amount) {
-        var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.tradeFee);
+        var receipt = transactionWithFeeRate(fromVault, List.of(toVault), amount, config.serviceFee.tradeFee);
         if (config.misc.logTransactionToConsole)
             Bukkit.getLogger().info("(Trade) " + receipt);
         return receipt;
@@ -151,10 +167,29 @@ public class EconomyCoreProvider implements EconomyCore {
     }
 
     @Override
-    public double getBalance(UUID vault) {
+    public double getPlayerBalance(UUID vault) {
         var player = Bukkit.getOfflinePlayer(vault);
         createPlayerBankAccountIfNotExist(player);
         return economy.getBalance(player);
+    }
+
+    @Override
+    public double getSystemBalance() {
+        if(isInternalVaultEnabled){
+            return internalVaultBalance;
+        }else{
+            return economy.getBalance(vaultPlayer);
+        }
+    }
+
+    @Override
+    public double getTransferFeeRate() {
+        return config.serviceFee.transferFee;
+    }
+
+    @Override
+    public double getTradeFeeRate() {
+        return config.serviceFee.tradeFee;
     }
 
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {
@@ -166,18 +201,11 @@ public class EconomyCoreProvider implements EconomyCore {
 
 }
 
-class TradeResultInternal implements TradeResult {
-    private final boolean flag;
-    private final Receipt receipt;
-
-    TradeResultInternal(boolean isSuccess, Receipt receipt) {
-        this.flag = isSuccess;
-        this.receipt = receipt;
-    }
+record TradeResultInternal(Status status, Receipt receipt) implements TradeResult {
 
     @Override
-    public boolean isSuccess() {
-        return flag;
+    public Status isSuccess() {
+        return status;
     }
 
     @Override
@@ -186,28 +214,43 @@ class TradeResultInternal implements TradeResult {
     }
 }
 
-record ReceiptInternal(UUID payer, UUID receiver, double amountTransacted, double fee,
-                       double amount, double feeRate, double payerRemain, double receiverRemain,
+record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransaction, double fee,
+                       double cost, double feeRate, double payerRemain,
                        long tradeId) implements Receipt {
 
     public UUID getPayer() {
         return payer;
     }
 
-    public UUID getReceiver() {
-        return receiver;
+    public List<UUID> getReceiver() {
+        return receivers;
     }
 
-    public double getAmountTransacted() {
-        return amountTransacted;
+    public double getAmountPerTransaction() {
+        return amountPerTransaction;
     }
 
-    public double getFee() {
+    @Override
+    public double getAmountTotally() {
+        return 0;
+    }
+
+    public double getFeePerTransaction() {
         return fee;
     }
 
-    public double getAmount() {
-        return amount;
+    @Override
+    public double getFeeTotally() {
+        return 0;
+    }
+
+    public double getCostPerTransaction() {
+        return cost;
+    }
+
+    @Override
+    public double getCostTotally() {
+        return 0;
     }
 
     public double getFeeRate() {
@@ -218,9 +261,6 @@ record ReceiptInternal(UUID payer, UUID receiver, double amountTransacted, doubl
         return payerRemain;
     }
 
-    public double getReceiverRemain() {
-        return receiverRemain;
-    }
 
     public long getTradeId() {
         return tradeId;
@@ -230,12 +270,11 @@ record ReceiptInternal(UUID payer, UUID receiver, double amountTransacted, doubl
     public String toString() {
         return "Receipt{" +
                 "payer=" + payer +
-                ", receiver=" + receiver +
-                ", amountTransacted=" + amountTransacted +
+                ", receivers=" + receivers.toString() +
+                ", amountPerTransaction=" + amountPerTransaction +
                 ", fee=" + fee +
-                ", amount=" + amount +
+                ", cost=" + cost +
                 ", payerRemain=" + payerRemain +
-                ", receiverRemain=" + receiverRemain +
                 ", tradeId=" + Long.toHexString(tradeId) +
                 '}';
     }
