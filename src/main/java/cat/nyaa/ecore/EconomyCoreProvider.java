@@ -22,10 +22,10 @@ public class EconomyCoreProvider implements EconomyCore {
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
     private final File economyCoreInternalDataFile;
     private final Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+    private final JavaPlugin pluginInstance;
     private Config config;
     private double internalVaultBalance;
     private OfflinePlayer vaultPlayer = null;
-    private final JavaPlugin pluginInstance;
     private boolean isInternalVaultEnabled;
 
     public EconomyCoreProvider(Config config, Economy economy, JavaPlugin pluginInstance) throws IOException {
@@ -87,28 +87,28 @@ public class EconomyCoreProvider implements EconomyCore {
         }
     }
 
-    private TradeResult transactionWithFeeRate(UUID fromVault,List<UUID> toVaults, double amount, double feeRate ) {
+    private TradeResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate) {
         var transacted = new ArrayList<UUID>();
         var total = amount * toVaults.size();
-        if(getPlayerBalance(fromVault) < total) {
+        if (getPlayerBalance(fromVault) < total) {
             return new TradeResultInternal(Status.INSUFFICIENT_BALANCE, null);
         }
 
         var transactionFee = amount * feeRate;
         var amountFinal = amount - transactionFee;
-        for(UUID toVault : toVaults){
-            if (!withdrawPlayer(fromVault,amount)) {
+        for (UUID toVault : toVaults) {
+            if (!withdrawPlayer(fromVault, amount)) {
                 break;
             }
             depositSystemVault(transactionFee);
-            depositPlayer(toVault,amountFinal);
+            depositPlayer(toVault, amountFinal);
         }
         return new TradeResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amountFinal, transactionFee, amount, config.serviceFee.transferFee, getPlayerBalance(fromVault), random.nextLong()));
     }
 
     @Override
     public TradeResult playerTransfer(UUID fromVault, UUID toVault, double amount) {
-        return playerTransferToMultiple(fromVault,List.of(toVault),amount);
+        return playerTransferToMultiple(fromVault, List.of(toVault), amount);
     }
 
     @Override
@@ -175,9 +175,9 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public double getSystemBalance() {
-        if(isInternalVaultEnabled){
+        if (isInternalVaultEnabled) {
             return internalVaultBalance;
-        }else{
+        } else {
             return economy.getBalance(vaultPlayer);
         }
     }
@@ -204,8 +204,8 @@ public class EconomyCoreProvider implements EconomyCore {
 record TradeResultInternal(Status status, Receipt receipt) implements TradeResult {
 
     @Override
-    public Status isSuccess() {
-        return status;
+    public boolean isSuccess() {
+        return status == Status.SUCCESS;
     }
 
     @Override
@@ -214,18 +214,22 @@ record TradeResultInternal(Status status, Receipt receipt) implements TradeResul
     }
 }
 
-record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransaction, double fee,
+record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransaction,
+                       double fee,
                        double cost, double feeRate, double payerRemain,
-                       long tradeId) implements Receipt {
+                       long receiptId) implements Receipt {
 
+    @Override
     public UUID getPayer() {
         return payer;
     }
 
+    @Override
     public List<UUID> getReceiver() {
         return receivers;
     }
 
+    @Override
     public double getAmountPerTransaction() {
         return amountPerTransaction;
     }
@@ -235,6 +239,7 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
         return 0;
     }
 
+    @Override
     public double getFeePerTransaction() {
         return fee;
     }
@@ -244,6 +249,7 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
         return 0;
     }
 
+    @Override
     public double getCostPerTransaction() {
         return cost;
     }
@@ -253,17 +259,24 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
         return 0;
     }
 
+    @Override
     public double getFeeRate() {
         return feeRate;
     }
 
+    @Override
+    public double getFeeRatePercent() {
+        return getFeeRate() * 100;
+    }
+
+    @Override
     public double getPayerRemain() {
         return payerRemain;
     }
 
-
-    public long getTradeId() {
-        return tradeId;
+    @Override
+    public long getId() {
+        return receiptId;
     }
 
     @Override
@@ -275,7 +288,7 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
                 ", fee=" + fee +
                 ", cost=" + cost +
                 ", payerRemain=" + payerRemain +
-                ", tradeId=" + Long.toHexString(tradeId) +
+                ", receiptId=" + Long.toHexString(receiptId) +
                 '}';
     }
 }

@@ -1,14 +1,16 @@
 package cat.nyaa.ecore;
 
-public interface TradeResult {
-    Status isSuccess();
-
-    Receipt getReceipt();
-}
-
-enum Status{
+enum Status {
     SUCCESS,
     INSUFFICIENT_BALANCE,
     UPSTREAM_FAILURE,
     UNKNOWN_ERROR
+}
+
+public interface TradeResult {
+    Status status();
+
+    boolean isSuccess();
+
+    Receipt getReceipt();
 }

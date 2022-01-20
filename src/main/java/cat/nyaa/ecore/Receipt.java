@@ -22,7 +22,9 @@ public interface Receipt {
 
     double getFeeRate();
 
+    double getFeeRatePercent();
+
     double getPayerRemain();
 
-    long getTradeId();
+    long getId();
 }
