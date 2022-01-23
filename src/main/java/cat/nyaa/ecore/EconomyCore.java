@@ -14,11 +14,15 @@ public interface EconomyCore {
 
     boolean withdrawPlayer(UUID vault, double amount);
 
+    boolean setPlayerBalance(UUID vault,double amount);
+
     boolean withdrawSystemVault(double amount);
 
     boolean depositSystemVault(double amount);
 
     double getPlayerBalance(UUID vault);
+
+    boolean setSystemBalance(double amount);
 
     double getSystemBalance();
 

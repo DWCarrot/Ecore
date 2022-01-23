@@ -144,6 +144,19 @@ public class EconomyCoreProvider implements EconomyCore {
         return withdrawResult.type != EconomyResponse.ResponseType.SUCCESS;
     }
 
+    @Override
+    public boolean setPlayerBalance(UUID vault, double amount) {
+        var player = Bukkit.getOfflinePlayer(vault);
+        createPlayerBankAccountIfNotExist(player);
+        var distance = amount - getPlayerBalance(vault);
+        if (distance > 0) {
+            return depositPlayer(vault, distance);
+        }else{
+            return withdrawPlayer(vault, -distance);
+        }
+    }
+
+    @Override
     public boolean withdrawSystemVault(double amount) {
         if (isInternalVaultEnabled) {
             if (internalVaultBalance < amount) {
@@ -157,6 +170,7 @@ public class EconomyCoreProvider implements EconomyCore {
         }
     }
 
+    @Override
     public boolean depositSystemVault(double amount) {
         if (isInternalVaultEnabled) {
             internalVaultBalance += amount;
@@ -171,6 +185,16 @@ public class EconomyCoreProvider implements EconomyCore {
         var player = Bukkit.getOfflinePlayer(vault);
         createPlayerBankAccountIfNotExist(player);
         return economy.getBalance(player);
+    }
+
+    @Override
+    public boolean setSystemBalance(double amount) {
+        if(isInternalVaultEnabled){
+            internalVaultBalance = amount;
+            return true;
+        }else{
+            return setPlayerBalance(vaultPlayer.getUniqueId(), amount);
+        }
     }
 
     @Override
