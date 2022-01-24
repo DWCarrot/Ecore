@@ -8,17 +8,17 @@ public interface Receipt {
 
     List<UUID> getReceiver();
 
-    double getAmountPerTransaction();
+    double getAmountArrivePerTransaction();
 
-    double getAmountTotally();
+    double getAmountArriveTotally();
 
     double getFeePerTransaction();
 
     double getFeeTotally();
 
-    double getCostPerTransaction();
+    double getAmountPerTransaction();
 
-    double getCostTotally();
+    double getAmountTotally();
 
     double getFeeRate();
 

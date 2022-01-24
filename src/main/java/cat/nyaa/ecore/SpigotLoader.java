@@ -60,9 +60,6 @@ public class SpigotLoader extends JavaPlugin {
         }
 
         this.getServer().getServicesManager().register(EconomyCore.class, eCoreProvider, this, ServicePriority.Normal);
-
-        //end of api initialize
-
     }
 
     private boolean setupEconomy() {

@@ -95,15 +95,16 @@ public class EconomyCoreProvider implements EconomyCore {
         }
 
         var transactionFee = amount * feeRate;
-        var amountFinal = amount - transactionFee;
+        var amountArrive = amount - transactionFee;
         for (UUID toVault : toVaults) {
             if (!withdrawPlayer(fromVault, amount)) {
                 break;
             }
             depositSystemVault(transactionFee);
-            depositPlayer(toVault, amountFinal);
+            depositPlayer(toVault, amountArrive);
+            transacted.add(toVault);
         }
-        return new TradeResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amountFinal, transactionFee, amount, config.serviceFee.transferFee, getPlayerBalance(fromVault), random.nextLong()));
+        return new TradeResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, config.serviceFee.transferFee, getPlayerBalance(fromVault), random.nextLong()));
     }
 
     @Override
@@ -115,7 +116,7 @@ public class EconomyCoreProvider implements EconomyCore {
     public TradeResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount) {
         var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee);
         if (config.misc.logTransactionToConsole)
-            Bukkit.getLogger().info("(Transfer) " + receipt);
+            pluginInstance.getLogger().info("(Transfer) " + receipt);
         return receipt;
     }
 
@@ -124,7 +125,7 @@ public class EconomyCoreProvider implements EconomyCore {
     public TradeResult playerTrade(UUID fromVault, UUID toVault, double amount) {
         var receipt = transactionWithFeeRate(fromVault, List.of(toVault), amount, config.serviceFee.tradeFee);
         if (config.misc.logTransactionToConsole)
-            Bukkit.getLogger().info("(Trade) " + receipt);
+            pluginInstance.getLogger().info("(Trade) " + receipt);
         return receipt;
     }
 
@@ -226,7 +227,6 @@ public class EconomyCoreProvider implements EconomyCore {
 }
 
 record TradeResultInternal(Status status, Receipt receipt) implements TradeResult {
-
     @Override
     public boolean isSuccess() {
         return status == Status.SUCCESS;
@@ -238,9 +238,9 @@ record TradeResultInternal(Status status, Receipt receipt) implements TradeResul
     }
 }
 
-record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransaction,
+record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
                        double fee,
-                       double cost, double feeRate, double payerRemain,
+                       double feeRate, double payerRemain,
                        long receiptId) implements Receipt {
 
     @Override
@@ -254,13 +254,13 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
     }
 
     @Override
-    public double getAmountPerTransaction() {
-        return amountPerTransaction;
+    public double getAmountArrivePerTransaction() {
+        return amount - fee;
     }
 
     @Override
-    public double getAmountTotally() {
-        return 0;
+    public double getAmountArriveTotally() {
+        return getAmountArrivePerTransaction() * receivers.size();
     }
 
     @Override
@@ -270,17 +270,17 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
 
     @Override
     public double getFeeTotally() {
-        return 0;
+        return fee * receivers.size();
     }
 
     @Override
-    public double getCostPerTransaction() {
-        return cost;
+    public double getAmountPerTransaction() {
+        return amount;
     }
 
     @Override
-    public double getCostTotally() {
-        return 0;
+    public double getAmountTotally() {
+        return amount * receivers.size();
     }
 
     @Override
@@ -308,9 +308,9 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
         return "Receipt{" +
                 "payer=" + payer +
                 ", receivers=" + receivers.toString() +
-                ", amountPerTransaction=" + amountPerTransaction +
-                ", fee=" + fee +
-                ", cost=" + cost +
+                ", amount =" + amount + "(" + getAmountTotally() + " totally)" +
+                ", fee=" + fee + "(" + getFeeTotally() + " totally)" +
+                ", arrive=" + getAmountArrivePerTransaction() + "(" + getAmountArriveTotally() + " totally)" +
                 ", payerRemain=" + payerRemain +
                 ", receiptId=" + Long.toHexString(receiptId) +
                 '}';
