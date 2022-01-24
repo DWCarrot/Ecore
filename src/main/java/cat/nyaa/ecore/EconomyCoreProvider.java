@@ -48,7 +48,7 @@ public class EconomyCoreProvider implements EconomyCore {
                     ecoreData = new EcoreDataInternal(0);
                     saveInternalVaultBalance();
                 }
-                internalVaultBalance = ecoreData.internalVaultBalance();
+                internalVaultBalance = ecoreData.getInternalVaultBalance();
                 pluginInstance.getLogger().info("Loaded ecore data file.");
             }
             pluginInstance.getServer().getScheduler().runTaskTimer(pluginInstance, () -> {
@@ -133,7 +133,7 @@ public class EconomyCoreProvider implements EconomyCore {
         var player = Bukkit.getOfflinePlayer(vault);
         createPlayerBankAccountIfNotExist(player);
         var withdrawResult = economy.depositPlayer(player, amount);
-        return withdrawResult.type != EconomyResponse.ResponseType.SUCCESS;
+        return withdrawResult.type == EconomyResponse.ResponseType.SUCCESS;
     }
 
     @Override
@@ -141,7 +141,7 @@ public class EconomyCoreProvider implements EconomyCore {
         var player = Bukkit.getOfflinePlayer(vault);
         createPlayerBankAccountIfNotExist(player);
         var withdrawResult = economy.withdrawPlayer(player, amount);
-        return withdrawResult.type != EconomyResponse.ResponseType.SUCCESS;
+        return withdrawResult.type == EconomyResponse.ResponseType.SUCCESS;
     }
 
     @Override
@@ -317,5 +317,18 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amountPerTransac
     }
 }
 
-record EcoreDataInternal(double internalVaultBalance) {
+class EcoreDataInternal {
+    private double internalVaultBalance;
+
+    public EcoreDataInternal(double internalVaultBalance) {
+        this.internalVaultBalance = internalVaultBalance;
+    }
+
+    public double getInternalVaultBalance() {
+        return internalVaultBalance;
+    }
+
+    public void setInternalVaultBalance(double internalVaultBalance) {
+        this.internalVaultBalance = internalVaultBalance;
+    }
 }
