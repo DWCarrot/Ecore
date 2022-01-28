@@ -53,8 +53,6 @@
         </pluginRepository>
     </pluginRepositories>
 
-
-
     <build>
         <plugins>
             <plugin>
@@ -92,7 +90,6 @@
                 </executions>
             </plugin>
         </plugins>
-
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -101,4 +98,11 @@
         </resources>
     </build>
 
+    <distributionManagement>
+        <repository>
+            <id>local-dist</id>
+            <!--suppress UnresolvedMavenProperty -->
+            <url>file://${mavenLocalDistDir}</url>
+        </repository>
+    </distributionManagement>
 </project>
