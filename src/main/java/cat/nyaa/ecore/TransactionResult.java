@@ -7,7 +7,7 @@ enum Status {
     UNKNOWN_ERROR
 }
 
-public interface TradeResult {
+public interface TransactionResult {
     Status status();
 
     boolean isSuccess();
