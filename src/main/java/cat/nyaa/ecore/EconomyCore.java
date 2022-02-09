@@ -10,7 +10,7 @@ import java.util.UUID;
  *  <p>You could get the instance of {@link EconomyCoreProvider} as EconomyCore in bukkit/spigot server as follows:</p>
  *  <pre>
  *      EconomyCoreProvider economyCoreProvider = (EconomyCoreProvider) Bukkit.getServicesManager().getRegistration(EconomyCoreProvider.class).getProvider();
- *      EconomyCore economyCore = economyCoreProvider.getEconomyCore();
+ *      EconomyCore economyCore = economyCoreProvider.getProvider();
  *  </pre>
  *
  *  <p>It is suggested that check the ECore plugin is pretty installed before load your plugins.</p>
@@ -27,7 +27,7 @@ import java.util.UUID;
  *              ...
  *              //then get the ECore provider, or {@link ClassNotFoundException} will be thrown at the line below (while access <code>EconomyCore.class</code> which cannot be found)
  *              EconomyCoreProvider economyCoreProvider = Bukkit.getServicesManager().getRegistration(EconomyCore.class).getProvider();
- *              EconomyCore economyCore = economyCoreProvider.getEconomyCore();
+ *              EconomyCore economyCore = economyCoreProvider.getProvider();
  *          }
  *      }
  * </pre>
@@ -43,7 +43,7 @@ public interface EconomyCore {
     TransactionResult playerTransfer(UUID fromVault, UUID toVault, double amount);
 
     /**
-     * transfer specific amount of balance to multiple players, automatically charging service fee.
+     * transfer specific amount of balance to every player in the list, automatically charging service fee.
      * @param fromVault the player to transfer from
      * @param toVault players to transfer to
      * @param amount the amount to transfer per player
@@ -52,7 +52,7 @@ public interface EconomyCore {
     TransactionResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount);
 
     /**
-     *
+     * trade between two players, automatically charging service fee.
      * @param consumer the player who act as consumer
      * @param merchant the player who act as merchant
      * @param price price of the goods
@@ -119,14 +119,24 @@ public interface EconomyCore {
     double getSystemBalance();
 
     /**
-     * get the transfer fee rate setting in double. For example, <code>0.02D</code> for <code>2%</code>.
+     * get the transfer fee rate setting in <code>double</code>. For example, <code>0.02</code> for <code>2%</code>.
      * @return the transfer fee rate
      */
     double getTransferFeeRate();
 
     /**
-     * get the trade fee rate setting in double. For example, <code>0.05D</code> for <code>5%</code>.
+     * get the trade fee rate setting in <code>double</code>. For example, <code>0.05</code> for <code>5%</code>.
      * @return the trade fee rate
      */
     double getTradeFeeRate();
+
+    /**
+     * returns the name of the currency in plural form.
+     */
+    String currencyNameSingular();
+
+    /**
+     * returns the name of the currency in singular form.
+     */
+    String currencyNamePlural();
 }

@@ -217,6 +217,16 @@ public class EconomyCoreProvider implements EconomyCore {
         return config.serviceFee.tradeFee;
     }
 
+    @Override
+    public String currencyNameSingular() {
+        return economy.currencyNameSingular();
+    }
+
+    @Override
+    public String currencyNamePlural() {
+        return economy.currencyNamePlural();
+    }
+
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {
         if (!economy.hasAccount(player)) {
             economy.createPlayerAccount(player);
