@@ -6,7 +6,7 @@
 
     <groupId>cat.nyaa</groupId>
     <artifactId>ecore</artifactId>
-    <version>0.1.8</version>
+    <version>0.2.0</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

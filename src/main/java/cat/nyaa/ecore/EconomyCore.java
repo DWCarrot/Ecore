@@ -57,11 +57,37 @@ public interface EconomyCore {
      * @param merchant the player who act as merchant
      * @param price price of the goods
      * @return the result of the trade
+     *
      */
     TransactionResult playerTrade(UUID consumer, UUID merchant, double price);
 
     /**
-     * deduct the balance from an account.
+     * trade between two players, automatically charging service fee.
+     * @param consumer the player who act as consumer
+     * @param merchant the player who act as merchant
+     * @param price price of the goods
+     * @param feeRate custom feeRate in <code>double</code>. For example, <code>0.05</code> for <code>5%</code>.
+     * @return the result of the trade
+     *
+     */
+    TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate);
+
+    /**
+     * trade between two players, automatically charging service fee.
+     * @param consumer the player who act as consumer
+     * @param merchant the player who act as merchant
+     * @param price price of the goods
+     * @param feeRate custom feeRate in <code>double</code>. For example, <code>0.05</code> for <code>5%</code>.
+     * @param feeMin minimum service fee
+     * @param feeMax maximum service fee
+     * @return the result of the trade
+     *
+     */
+    TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate,double feeMin,double feeMax);
+
+
+    /**
+     * add balance to an account.
      * @param vault the account to act on
      * @param amount the amount to deduct
      * @return true for ok and false for failed
@@ -69,7 +95,7 @@ public interface EconomyCore {
     boolean depositPlayer(UUID vault, double amount);
 
     /**
-     * add balance to an account.
+     * deduct the balance from an account.
      * @param vault the account to act on
      * @param amount the amount to add
      * @return true for ok and false for failed

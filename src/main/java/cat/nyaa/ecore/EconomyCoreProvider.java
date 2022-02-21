@@ -87,7 +87,7 @@ public class EconomyCoreProvider implements EconomyCore {
         }
     }
 
-    private TransactionResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate) {
+    private TransactionResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate,double feeMin,double feeMax) {
         var transacted = new ArrayList<UUID>();
         var total = amount * toVaults.size();
         if (getPlayerBalance(fromVault) < total) {
@@ -95,6 +95,11 @@ public class EconomyCoreProvider implements EconomyCore {
         }
 
         var transactionFee = amount * feeRate;
+        if(transactionFee < feeMin)
+            transactionFee = feeMin;
+        else if(transactionFee > feeMax)
+            transactionFee = feeMax;
+
         var amountArrive = amount - transactionFee;
         for (UUID toVault : toVaults) {
             if (!withdrawPlayer(fromVault, amount)) {
@@ -104,7 +109,7 @@ public class EconomyCoreProvider implements EconomyCore {
             depositPlayer(toVault, amountArrive);
             transacted.add(toVault);
         }
-        return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, config.serviceFee.transferFee, getPlayerBalance(fromVault), random.nextLong()));
+        return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), random.nextLong()));
     }
 
     @Override
@@ -114,7 +119,7 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public TransactionResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount) {
-        var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee);
+        var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee,0,Double.MAX_VALUE);
         if (config.misc.logTransactionToConsole)
             pluginInstance.getLogger().info("(Transfer) " + receipt);
         return receipt;
@@ -122,8 +127,18 @@ public class EconomyCoreProvider implements EconomyCore {
 
 
     @Override
-    public TransactionResult playerTrade(UUID fromVault, UUID toVault, double amount) {
-        var receipt = transactionWithFeeRate(fromVault, List.of(toVault), amount, config.serviceFee.tradeFee);
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price) {
+        return playerTrade(consumer,merchant, price,config.serviceFee.tradeFee);
+    }
+
+    @Override
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate) {
+        return playerTrade(consumer, merchant, price, feeRate,0,Double.MAX_VALUE);
+    }
+
+    @Override
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate, double feeMin, double feeMax) {
+        var receipt = transactionWithFeeRate(consumer, List.of(merchant), price, feeRate,feeMin,feeMax);
         if (config.misc.logTransactionToConsole)
             pluginInstance.getLogger().info("(Trade) " + receipt);
         return receipt;
