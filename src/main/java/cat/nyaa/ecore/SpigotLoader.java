@@ -79,6 +79,8 @@ public class SpigotLoader extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        eCoreProvider.onDisable();
+        if(eCoreProvider != null) {
+            eCoreProvider.onDisable();
+        }
     }
 }
