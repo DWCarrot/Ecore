@@ -102,14 +102,41 @@ public class EconomyCoreProvider implements EconomyCore {
 
         var amountArrive = amount - transactionFee;
         for (UUID toVault : toVaults) {
+            //step 0: withdraw from vault
             if (!withdrawPlayer(fromVault, amount)) {
                 break;
             }
-            depositSystemVault(transactionFee);
-            depositPlayer(toVault, amountArrive);
+
+            //step 1: deposit service fee to system vault
+            var depositServiceFeeSuccess = depositSystemVault(transactionFee);
+            if(!depositServiceFeeSuccess){
+                var rollbackSuccess = depositPlayer(fromVault, amount);
+                if(!rollbackSuccess){
+                    throw new RuntimeException("Failed to rollback transaction: deposit "+amount+" to "+fromVault+" failed.");
+                }
+                break;
+            }
+            //step2: deposit to target Vault
+            var depositPlayerSuccess = depositPlayer(toVault, amountArrive);
+            if(!depositPlayerSuccess){
+                var rollbackStep1Success = withdrawSystemVault(transactionFee);
+                if(!rollbackStep1Success){
+                    throw new RuntimeException("Failed to rollback transaction: withdraw "+transactionFee+" from system vault and "+ "deposit "+amount+" to "+fromVault+" failed.");
+                }
+                var rollbackStep0Success = depositPlayer(fromVault, amount);
+                if(!rollbackStep0Success){
+                    throw new RuntimeException("Failed to rollback transaction: deposit "+amount+" to "+fromVault+" failed.");
+                }
+                break;
+            }
             transacted.add(toVault);
         }
-        return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), random.nextLong()));
+
+        if(transacted.isEmpty()){
+            return new TransactionResultInternal(Status.UNKNOWN_ERROR, null);
+        }else{
+            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), random.nextLong()));
+        }
     }
 
     @Override
@@ -248,9 +275,12 @@ public class EconomyCoreProvider implements EconomyCore {
     }
 
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {
-        if (!economy.hasAccount(player)) {
-            economy.createPlayerAccount(player);
-        }
+        try{
+            //if possible
+            if (!economy.hasAccount(player)) {
+                economy.createPlayerAccount(player);
+            }
+        }catch(Exception ignored){}
     }
 
 
