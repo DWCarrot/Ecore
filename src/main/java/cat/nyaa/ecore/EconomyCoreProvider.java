@@ -242,6 +242,11 @@ public class EconomyCoreProvider implements EconomyCore {
         return economy.currencyNamePlural();
     }
 
+    @Override
+    public String systemVaultName() {
+        return config.vault.friendlyName;
+    }
+
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {
         if (!economy.hasAccount(player)) {
             economy.createPlayerAccount(player);

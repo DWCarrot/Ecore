@@ -165,4 +165,9 @@ public interface EconomyCore {
      * returns the name of the currency in singular form.
      */
     String currencyNamePlural();
+
+    /**
+     * returns System vault name.
+     */
+    String systemVaultName();
 }

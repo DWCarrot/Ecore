@@ -8,6 +8,7 @@ public class Config {
 
 class SystemVault {
     public String type = "internal";
+    public String friendlyName = "System Vault";
     public long internalVaultAutoSaveIntervalInSeconds = 60;
     public String externalPlayerVaultUUID = "0";
 }
