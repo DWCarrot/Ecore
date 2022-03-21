@@ -87,55 +87,61 @@ public class EconomyCoreProvider implements EconomyCore {
         }
     }
 
-    private TransactionResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate,double feeMin,double feeMax) {
+    private TransactionResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate, double feeMin, double feeMax, ServiceFeePreference serviceFeePreference) {
         var transacted = new ArrayList<UUID>();
         var total = amount * toVaults.size();
-        if (getPlayerBalance(fromVault) < total) {
+        var transactionFee = amount * feeRate;
+        if (transactionFee < feeMin)
+            transactionFee = feeMin;
+        else if (transactionFee > feeMax)
+            transactionFee = feeMax;
+
+        var amountArrive = switch (serviceFeePreference) {
+            case INTERNAL -> total - transactionFee;
+            case ADDITIONAL -> total;
+        };
+
+        var takeout = serviceFeePreference == ServiceFeePreference.INTERNAL ? total : total + transactionFee;
+
+        if (getPlayerBalance(fromVault) < takeout) {
             return new TransactionResultInternal(Status.INSUFFICIENT_BALANCE, null);
         }
 
-        var transactionFee = amount * feeRate;
-        if(transactionFee < feeMin)
-            transactionFee = feeMin;
-        else if(transactionFee > feeMax)
-            transactionFee = feeMax;
-
-        var amountArrive = amount - transactionFee;
         for (UUID toVault : toVaults) {
             //step 0: withdraw from vault
-            if (!withdrawPlayer(fromVault, amount)) {
+            if (!withdrawPlayer(fromVault, takeout)) {
                 break;
             }
 
             //step 1: deposit service fee to system vault
             var depositServiceFeeSuccess = depositSystemVault(transactionFee);
-            if(!depositServiceFeeSuccess){
-                var rollbackSuccess = depositPlayer(fromVault, amount);
-                if(!rollbackSuccess){
-                    throw new RuntimeException("Failed to rollback transaction: deposit "+amount+" to "+fromVault+" failed.");
+            if (!depositServiceFeeSuccess) {
+                var rollbackSuccess = depositPlayer(fromVault, takeout);
+                if (!rollbackSuccess) {
+                    throw new RuntimeException("Failed to rollback transaction: deposit " + takeout + " to " + fromVault + " failed.");
                 }
                 break;
             }
             //step2: deposit to target Vault
             var depositPlayerSuccess = depositPlayer(toVault, amountArrive);
-            if(!depositPlayerSuccess){
+            if (!depositPlayerSuccess) {
                 var rollbackStep1Success = withdrawSystemVault(transactionFee);
-                if(!rollbackStep1Success){
-                    throw new RuntimeException("Failed to rollback transaction: withdraw "+transactionFee+" from system vault and "+ "deposit "+amount+" to "+fromVault+" failed.");
+                if (!rollbackStep1Success) {
+                    throw new RuntimeException("Failed to rollback transaction: withdraw " + transactionFee + " from system vault and " + "deposit " + amount + " to " + fromVault + " failed.");
                 }
-                var rollbackStep0Success = depositPlayer(fromVault, amount);
-                if(!rollbackStep0Success){
-                    throw new RuntimeException("Failed to rollback transaction: deposit "+amount+" to "+fromVault+" failed.");
+                var rollbackStep0Success = depositPlayer(fromVault, takeout);
+                if (!rollbackStep0Success) {
+                    throw new RuntimeException("Failed to rollback transaction: deposit " + takeout + " to " + fromVault + " failed.");
                 }
                 break;
             }
             transacted.add(toVault);
         }
 
-        if(transacted.isEmpty()){
+        if (transacted.isEmpty()) {
             return new TransactionResultInternal(Status.UNKNOWN_ERROR, null);
-        }else{
-            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), random.nextLong()));
+        } else {
+            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
         }
     }
 
@@ -146,7 +152,12 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public TransactionResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount) {
-        var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee,0,Double.MAX_VALUE);
+        return playerTransferToMultiple(fromVault, toVault, amount, ServiceFeePreference.INTERNAL);
+    }
+
+    @Override
+    public TransactionResult playerTransferToMultiple(UUID fromVault, List<UUID> toVault, double amount, ServiceFeePreference serviceFeePreference) {
+        var receipt = transactionWithFeeRate(fromVault, toVault, amount, config.serviceFee.transferFee, 0, Double.MAX_VALUE, serviceFeePreference);
         if (config.misc.logTransactionToConsole)
             pluginInstance.getLogger().info("(Transfer) " + receipt);
         return receipt;
@@ -155,17 +166,35 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public TransactionResult playerTrade(UUID consumer, UUID merchant, double price) {
-        return playerTrade(consumer,merchant, price,config.serviceFee.tradeFee);
+        return playerTrade(consumer, merchant, price, config.serviceFee.tradeFee);
+    }
+
+    @Override
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, ServiceFeePreference serviceFeePreference) {
+        return playerTrade(consumer, merchant, price, config.serviceFee.tradeFee, serviceFeePreference);
     }
 
     @Override
     public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate) {
-        return playerTrade(consumer, merchant, price, feeRate,0,Double.MAX_VALUE);
+        return playerTrade(consumer, merchant, price, feeRate, 0, Double.MAX_VALUE);
+    }
+
+    @Override
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate, ServiceFeePreference serviceFeePreference) {
+        return playerTrade(consumer, merchant, price, feeRate, 0, Double.MAX_VALUE, serviceFeePreference);
     }
 
     @Override
     public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate, double feeMin, double feeMax) {
-        var receipt = transactionWithFeeRate(consumer, List.of(merchant), price, feeRate,feeMin,feeMax);
+        var receipt = transactionWithFeeRate(consumer, List.of(merchant), price, feeRate, feeMin, feeMax, ServiceFeePreference.INTERNAL);
+        if (config.misc.logTransactionToConsole)
+            pluginInstance.getLogger().info("(Trade) " + receipt);
+        return receipt;
+    }
+
+    @Override
+    public TransactionResult playerTrade(UUID consumer, UUID merchant, double price, double feeRate, double feeMin, double feeMax, ServiceFeePreference serviceFeePreference) {
+        var receipt = transactionWithFeeRate(consumer, List.of(merchant), price, feeRate, feeMin, feeMax, serviceFeePreference);
         if (config.misc.logTransactionToConsole)
             pluginInstance.getLogger().info("(Trade) " + receipt);
         return receipt;
@@ -194,7 +223,7 @@ public class EconomyCoreProvider implements EconomyCore {
         var distance = amount - getPlayerBalance(vault);
         if (distance > 0) {
             return depositPlayer(vault, distance);
-        }else{
+        } else {
             return withdrawPlayer(vault, -distance);
         }
     }
@@ -232,10 +261,10 @@ public class EconomyCoreProvider implements EconomyCore {
 
     @Override
     public boolean setSystemBalance(double amount) {
-        if(isInternalVaultEnabled){
+        if (isInternalVaultEnabled) {
             internalVaultBalance = amount;
             return true;
-        }else{
+        } else {
             return setPlayerBalance(vaultPlayer.getUniqueId(), amount);
         }
     }
@@ -275,12 +304,13 @@ public class EconomyCoreProvider implements EconomyCore {
     }
 
     private void createPlayerBankAccountIfNotExist(OfflinePlayer player) {
-        try{
+        try {
             //if possible
             if (!economy.hasAccount(player)) {
                 economy.createPlayerAccount(player);
             }
-        }catch(Exception ignored){}
+        } catch (Exception ignored) {
+        }
     }
 
 
@@ -300,7 +330,7 @@ record TransactionResultInternal(Status status, Receipt receipt) implements Tran
 
 record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
                        double fee,
-                       double feeRate, double payerRemain,
+                       double feeRate, double payerRemain, ServiceFeePreference serviceFeePreference,
                        long receiptId) implements Receipt {
 
     @Override
@@ -356,6 +386,11 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
     @Override
     public double getPayerRemain() {
         return payerRemain;
+    }
+
+    @Override
+    public ServiceFeePreference getTaxPreference() {
+        return serviceFeePreference;
     }
 
     @Override

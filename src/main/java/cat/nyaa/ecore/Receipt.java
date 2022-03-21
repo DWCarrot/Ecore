@@ -26,5 +26,7 @@ public interface Receipt {
 
     double getPayerRemain();
 
+    ServiceFeePreference getTaxPreference();
+
     long getId();
 }
