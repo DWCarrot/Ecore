@@ -141,7 +141,7 @@ public class EconomyCoreProvider implements EconomyCore {
         if (transacted.isEmpty()) {
             return new TransactionResultInternal(Status.UNKNOWN_ERROR, null);
         } else {
-            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
+            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, amountArrive, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
         }
     }
 
@@ -328,7 +328,7 @@ record TransactionResultInternal(Status status, Receipt receipt) implements Tran
     }
 }
 
-record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
+record ReceiptInternal(UUID payer, List<UUID> receivers, double amount, double arrivalAmount,
                        double fee,
                        double feeRate, double payerRemain, ServiceFeePreference serviceFeePreference,
                        long receiptId) implements Receipt {
@@ -345,7 +345,7 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
 
     @Override
     public double getAmountArrivePerTransaction() {
-        return amount - fee;
+        return arrivalAmount;
     }
 
     @Override
@@ -400,13 +400,15 @@ record ReceiptInternal(UUID payer, List<UUID> receivers, double amount,
 
     @Override
     public String toString() {
-        return "Receipt{" +
+        return "ReceiptInternal{" +
                 "payer=" + payer +
                 ", receivers=" + receivers.toString() +
-                ", amount =" + amount + "(" + getAmountTotally() + " totally)" +
+                ", amount=" + amount + "(" + getAmountTotally() + " totally)" +
+                ", arrivalAmount=" + arrivalAmount +
                 ", fee=" + fee + "(" + getFeeTotally() + " totally)" +
-                ", arrive=" + getAmountArrivePerTransaction() + "(" + getAmountArriveTotally() + " totally)" +
+                ", feeRate=" + feeRate +
                 ", payerRemain=" + payerRemain +
+                ", serviceFeePreference=" + serviceFeePreference +
                 ", receiptId=" + Long.toHexString(receiptId) +
                 '}';
     }
