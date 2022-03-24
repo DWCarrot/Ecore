@@ -104,7 +104,7 @@ public class EconomyCoreProvider implements EconomyCore {
         var takeout = serviceFeePreference == ServiceFeePreference.INTERNAL ? total : total + transactionFee;
 
         if (getPlayerBalance(fromVault) < takeout) {
-            return new TransactionResultInternal(Status.INSUFFICIENT_BALANCE, null);
+            return new TransactionResultInternal(TransactionStatus.INSUFFICIENT_BALANCE, null);
         }
 
         for (UUID toVault : toVaults) {
@@ -139,9 +139,9 @@ public class EconomyCoreProvider implements EconomyCore {
         }
 
         if (transacted.isEmpty()) {
-            return new TransactionResultInternal(Status.UNKNOWN_ERROR, null);
+            return new TransactionResultInternal(TransactionStatus.UNKNOWN_ERROR, null);
         } else {
-            return new TransactionResultInternal(Status.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, amountArrive, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
+            return new TransactionResultInternal(TransactionStatus.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, amountArrive, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
         }
     }
 
@@ -316,10 +316,15 @@ public class EconomyCoreProvider implements EconomyCore {
 
 }
 
-record TransactionResultInternal(Status status, Receipt receipt) implements TransactionResult {
+record TransactionResultInternal(TransactionStatus transactionStatus, Receipt receipt) implements TransactionResult {
+    @Override
+    public TransactionStatus status() {
+        return transactionStatus;
+    }
+
     @Override
     public boolean isSuccess() {
-        return status == Status.SUCCESS;
+        return transactionStatus == TransactionStatus.SUCCESS;
     }
 
     @Override
