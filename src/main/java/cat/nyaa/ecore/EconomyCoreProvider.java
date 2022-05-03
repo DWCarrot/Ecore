@@ -88,60 +88,62 @@ public class EconomyCoreProvider implements EconomyCore {
     }
 
     private TransactionResult transactionWithFeeRate(UUID fromVault, List<UUID> toVaults, double amount, double feeRate, double feeMin, double feeMax, ServiceFeePreference serviceFeePreference) {
-        var transacted = new ArrayList<UUID>();
-        var total = amount * toVaults.size();
+        var transactedPlayers = new ArrayList<UUID>();
         var transactionFee = amount * feeRate;
         if (transactionFee < feeMin)
             transactionFee = feeMin;
         else if (transactionFee > feeMax)
             transactionFee = feeMax;
 
-        var amountArrive = switch (serviceFeePreference) {
-            case INTERNAL -> total - transactionFee;
-            case ADDITIONAL -> total;
+        var amountNeedPerTransaction = switch (serviceFeePreference){
+            case INTERNAL -> amount;
+            case ADDITIONAL -> amount + transactionFee;
         };
 
-        var takeout = serviceFeePreference == ServiceFeePreference.INTERNAL ? total : total + transactionFee;
+        var amountArrivePerTransaction = switch (serviceFeePreference) {
+            case INTERNAL -> amount - transactionFee;
+            case ADDITIONAL -> amount;
+        };
 
-        if (getPlayerBalance(fromVault) < takeout) {
+        if (getPlayerBalance(fromVault) < amountNeedPerTransaction) {
             return new TransactionResultInternal(TransactionStatus.INSUFFICIENT_BALANCE, null);
         }
 
         for (UUID toVault : toVaults) {
             //step 0: withdraw from vault
-            if (!withdrawPlayer(fromVault, takeout)) {
+            if (!withdrawPlayer(fromVault, amountNeedPerTransaction)) {
                 break;
             }
 
             //step 1: deposit service fee to system vault
             var depositServiceFeeSuccess = depositSystemVault(transactionFee);
             if (!depositServiceFeeSuccess) {
-                var rollbackSuccess = depositPlayer(fromVault, takeout);
+                var rollbackSuccess = depositPlayer(fromVault, amountNeedPerTransaction);
                 if (!rollbackSuccess) {
-                    throw new RuntimeException("Failed to rollback transaction: deposit " + takeout + " to " + fromVault + " failed.");
+                    throw new RuntimeException("Failed to rollback transaction: deposit " + amountNeedPerTransaction + " to " + fromVault + " failed.");
                 }
                 break;
             }
             //step2: deposit to target Vault
-            var depositPlayerSuccess = depositPlayer(toVault, amountArrive);
+            var depositPlayerSuccess = depositPlayer(toVault, amountArrivePerTransaction);
             if (!depositPlayerSuccess) {
                 var rollbackStep1Success = withdrawSystemVault(transactionFee);
                 if (!rollbackStep1Success) {
                     throw new RuntimeException("Failed to rollback transaction: withdraw " + transactionFee + " from system vault and " + "deposit " + amount + " to " + fromVault + " failed.");
                 }
-                var rollbackStep0Success = depositPlayer(fromVault, takeout);
+                var rollbackStep0Success = depositPlayer(fromVault, amountNeedPerTransaction);
                 if (!rollbackStep0Success) {
-                    throw new RuntimeException("Failed to rollback transaction: deposit " + takeout + " to " + fromVault + " failed.");
+                    throw new RuntimeException("Failed to rollback transaction: deposit " + amountNeedPerTransaction + " to " + fromVault + " failed.");
                 }
                 break;
             }
-            transacted.add(toVault);
+            transactedPlayers.add(toVault);
         }
 
-        if (transacted.isEmpty()) {
+        if (transactedPlayers.isEmpty()) {
             return new TransactionResultInternal(TransactionStatus.UNKNOWN_ERROR, null);
         } else {
-            return new TransactionResultInternal(TransactionStatus.SUCCESS, new ReceiptInternal(fromVault, transacted, amount, amountArrive, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
+            return new TransactionResultInternal(TransactionStatus.SUCCESS, new ReceiptInternal(fromVault, transactedPlayers, amount, amountArrivePerTransaction, transactionFee, feeRate, getPlayerBalance(fromVault), serviceFeePreference, random.nextLong()));
         }
     }
 
