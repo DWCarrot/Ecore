@@ -9,8 +9,8 @@
     <version>0.3.3</version>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -126,9 +126,9 @@
 
     <distributionManagement>
         <repository>
-            <id>local-dist</id>
-            <!--suppress UnresolvedMavenProperty -->
-            <url>file://${mavenLocalDistDir}</url>
+            <id>github-package</id>
+            <name>Github Package</name>
+            <url>https://maven.pkg.github.com/DWCarrot/Ecore</url>
         </repository>
     </distributionManagement>
 </project>
