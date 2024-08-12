@@ -9,12 +9,10 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK
@@ -23,11 +21,12 @@ jobs:
         java-version: '21'
         distribution: 'adopt'
         server-id: 'github-package'
+        server-username: ${{ secrets.MAVEN_USERNAME }}
+        server-password: ${{ secrets.MAVEN_PASSWORD }}
+        cache: 'maven'
 
     - name: Build with Maven
       run: mvn --batch-mode package --file pom.xml
 
     - name: Publish to GitHub Packages Apache Maven
       run: mvn --batch-mode deploy
-      env:
-        GITHUB_TOKEN: ${{ secrets.MAVEN_PASSWORD }}
